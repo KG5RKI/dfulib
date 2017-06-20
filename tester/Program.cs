@@ -13,7 +13,7 @@ namespace tester
         {
             TyteraRadio tr = new TyteraRadio(TyteraRadio.RadioModel.RM_MD380);
 
-            //tr.TickleTickle();
+            tr.TickleTickle();
             UInt32 bof = tr.GetSpiID();
             Console.WriteLine("SPI ID: " + bof.ToString("X"));
             //Console.ReadKey();

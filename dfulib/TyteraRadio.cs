@@ -229,8 +229,9 @@ namespace dfulib
 
             STDFU.DFU_Status dfuStatus = new STDFU.DFU_Status();
             STDFU.STDFU_GetStatus(ref hDevice, ref dfuStatus);
-            Thread.Sleep(100);
+            Thread.Sleep(50);
             STDFU.STDFU_GetStatus(ref hDevice, ref dfuStatus);
+           // WaitUntilIdle();
 
             Console.WriteLine(address);
 
@@ -263,9 +264,9 @@ namespace dfulib
             uint res = STDFU.STDFU_Dnload(ref hDevice, cmd, (uint)cmd.Length, 1);
             STDFU.DFU_Status dfuStatus = new STDFU.DFU_Status();
             STDFU.STDFU_GetStatus(ref hDevice, ref dfuStatus);
-            Thread.Sleep(10);
+            //Thread.Sleep(50);
             STDFU.STDFU_GetStatus(ref hDevice, ref dfuStatus);
-
+            WaitUntilIdle();
 
             byte[] bytes = new byte[data.Length];
             res = STDFU.STDFU_Upload(ref hDevice, bytes, (uint)data.Length, 1);
@@ -554,7 +555,7 @@ namespace dfulib
                     byte[] tmp = new byte[1024];
                     Array.Copy(data, i * 1024, tmp, 0, 1024);
                     WriteSPIFlash(address + (i * 1024), 1024, tmp);
-                    WaitUntilIdle();
+                    //WaitUntilIdle();
                     int prog = (int)(((float)(i) / (float)(fullparts)) * 100.0);
                     progress = (prog == 0 ? 1 : prog);
                     Console.WriteLine("Writing addr: " + ((i * 1024)));
@@ -565,9 +566,10 @@ namespace dfulib
             uint lastpartsize = (uint)data.Length - (fullparts * 1024);
             if(lastpartsize > 0)
             {
-                byte[] tmp = new byte[lastpartsize];
+                byte[] tmp = new byte[1024];
+                for (int i = 0; i < 1024; i++) tmp[i] = 0;
                 Array.Copy(data, fullparts * 1024, tmp, 0, lastpartsize);
-                WriteSPIFlash(address + (fullparts * 1024), lastpartsize, tmp);
+                WriteSPIFlash(address + (fullparts * 1024), 1024, tmp);
                 Console.WriteLine("Writing addr: " + (fullparts * 1024));
             }
             progress = 100;
