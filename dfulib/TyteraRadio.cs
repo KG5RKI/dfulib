@@ -36,6 +36,13 @@ namespace dfulib
         private RadioModel radioModel;
         private IntPtr hDevice;
 
+        public float progress = 0;
+
+        public float GetCurrentOperationProgress()
+        {
+            return progress;
+        }
+
         public TyteraRadio(RadioModel radioModel = RadioModel.RM_MD380)
         {
             this.radioModel = radioModel;
@@ -207,7 +214,7 @@ namespace dfulib
 
         private void EraseSPI64kBlock(UInt32 address)
         {
-            //WaitUntilIdle();
+            WaitUntilIdle();
 
             byte[] cmd = new byte[5];
             cmd[0] = 0x03; // SPIFLASHWRITE_NEW
@@ -222,8 +229,10 @@ namespace dfulib
 
             STDFU.DFU_Status dfuStatus = new STDFU.DFU_Status();
             STDFU.STDFU_GetStatus(ref hDevice, ref dfuStatus);
-            //Console.WriteLine("Status: " + dfuStatus.bStatus);
+            Thread.Sleep(100);
             STDFU.STDFU_GetStatus(ref hDevice, ref dfuStatus);
+
+            Console.WriteLine(address);
 
             byte[] bytes = new byte[1024];
             STDFU.STDFU_Upload(ref hDevice, bytes, 1024, 1);
@@ -231,7 +240,7 @@ namespace dfulib
 
         private void WriteSPIFlash(UInt32 address, UInt32 size, byte[] data)
         {
-            //WaitUntilIdle();
+            
             //Console.WriteLine("Flashin " + data.Length);
             byte[] cmd = new byte[9 + data.Length];
             cmd[0] = 0x04; // SPIFLASHWRITE_NEW
@@ -252,11 +261,11 @@ namespace dfulib
             Array.Copy(data, 0, cmd, 9, data.Length);
 
             uint res = STDFU.STDFU_Dnload(ref hDevice, cmd, (uint)cmd.Length, 1);
-            //Console.WriteLine("WriteSPIFlash: " + res);
             STDFU.DFU_Status dfuStatus = new STDFU.DFU_Status();
             STDFU.STDFU_GetStatus(ref hDevice, ref dfuStatus);
-            //Console.WriteLine("Status: " + dfuStatus.bStatus);
+            Thread.Sleep(10);
             STDFU.STDFU_GetStatus(ref hDevice, ref dfuStatus);
+
 
             byte[] bytes = new byte[data.Length];
             res = STDFU.STDFU_Upload(ref hDevice, bytes, (uint)data.Length, 1);
@@ -274,6 +283,7 @@ namespace dfulib
 
         public void Reboot()
         {
+            progress = 0;
             WaitUntilIdle();
             STDFU.STDFU_Dnload(ref hDevice, new byte[] { 0x91, 0x05 }, 2, 0);
             STDFU.DFU_Status dfuStatus = new STDFU.DFU_Status();
@@ -311,8 +321,9 @@ namespace dfulib
             {
                 Array.Copy(data, i, tmpBlk, 0, MAX_WRITE_BLOCK_SIZE);
                 WriteBlock(tmpBlk, blockNumber);
-
+                WaitUntilIdle();
                 blockNumber++;
+                progress = (int)(((float)i / (float)data.Length) * 100.0);
             }
         }
 
@@ -379,8 +390,10 @@ namespace dfulib
             CustomCommand(0x91, 0x01);
             CustomCommand(0x91, 0x31);
 
+            int jj = 0;
             foreach(uint addr in addresses)
             {
+                progress = (int)(((float)jj++ / (float)addresses.Length) * 100.0);
                 EraseSector(addr);
             }
 
@@ -404,7 +417,7 @@ namespace dfulib
                 {
                     if (block_number > block_ends[address_idx])
                     {
-                        Console.WriteLine("Something bad happenin!");
+                       // Console.WriteLine("Something bad happenin!");
                         return;
                     }
 
@@ -419,6 +432,8 @@ namespace dfulib
                     WaitUntilIdle();
 
                     block_number++;
+                    int stuff = (int)(((float)datawritten / (float)data.Length) * 100.0);
+                    progress = (stuff == 0 ? 1 : stuff);
                 }
                 address_idx += 1;
             }
@@ -448,6 +463,7 @@ namespace dfulib
             long offset = 0;
             for(uint blockNumber = 2; blockNumber < 0x102; blockNumber++)
             {
+                progress = (int)(((float)blockNumber / (float)0x102) * 100.0);
                 byte[] data = ReadBlock(blockNumber, MAX_WRITE_BLOCK_SIZE);
                 Array.Copy(data, 0, codeplug, offset, MAX_WRITE_BLOCK_SIZE);
 
@@ -470,18 +486,18 @@ namespace dfulib
             Console.WriteLine("SelectConfig Res: " + Result);
             STDFU.STDFU_GetStatus(ref hDevice, ref dfuStatus);
             STDFU.STDFU_ClrStatus(ref hDevice);
-            Console.WriteLine("DFU iString: " + dfuStatus.iString);
-            Console.WriteLine("DFU State: " + dfuStatus.bState);
-            Console.WriteLine("DFU STATUS: " + dfuStatus.bStatus);
+           // Console.WriteLine("DFU iString: " + dfuStatus.iString);
+           // Console.WriteLine("DFU State: " + dfuStatus.bState);
+           // Console.WriteLine("DFU STATUS: " + dfuStatus.bStatus);
             IntPtr strinng = Marshal.AllocHGlobal(256);
             Result = STDFU.STDFU_GetStringDescriptor(ref hDevice, 1, strinng, 256);
-            Console.WriteLine("StringDesc Res: " + Result);
+           // Console.WriteLine("StringDesc Res: " + Result);
             
             STDFU.STDFU_GetStatus(ref hDevice, ref dfuStatus);
             STDFU.STDFU_ClrStatus(ref hDevice);
-            Console.WriteLine("DFU iString: " + dfuStatus.iString);
-            Console.WriteLine("DFU State: " + dfuStatus.bState);
-            Console.WriteLine("DFU STATUS: " + dfuStatus.bStatus);
+           // Console.WriteLine("DFU iString: " + dfuStatus.iString);
+            //Console.WriteLine("DFU State: " + dfuStatus.bState);
+            //Console.WriteLine("DFU STATUS: " + dfuStatus.bStatus);
             byte[] bytes = new byte[256];
             Marshal.Copy(strinng, bytes, 0, 256); 
             Marshal.FreeHGlobal(strinng);
@@ -501,9 +517,9 @@ namespace dfulib
 
             STDFU.DFU_Status dfuStatus = new STDFU.DFU_Status();
             STDFU.STDFU_GetStatus(ref hDevice, ref dfuStatus);
-            Console.WriteLine("DFU iString: " + dfuStatus.iString);
-            Console.WriteLine("DFU State: " + dfuStatus.bState);
-            Console.WriteLine("DFU STATUS: " + dfuStatus.bStatus);
+            //Console.WriteLine("DFU iString: " + dfuStatus.iString);
+            //Console.WriteLine("DFU State: " + dfuStatus.bState);
+            //Console.WriteLine("DFU STATUS: " + dfuStatus.bStatus);
 
             WaitUntilIdle();
 
@@ -520,12 +536,15 @@ namespace dfulib
             // todo: change to userdb address
             uint address = 0x100000;
 
+            Console.WriteLine("Erasing..");
             // erase
             for (uint i = address; i < (address + data.Length + 1); i += 0x1000)
             {
+                progress = (int)(((float)(i) / (float)((address + data.Length+1))) * 100.0);
                 EraseSPI64kBlock(i);
             }
 
+            Console.WriteLine("Writing..");
             // write
             uint fullparts = (uint)data.Length / 1024;
             if(fullparts > 0)
@@ -535,7 +554,10 @@ namespace dfulib
                     byte[] tmp = new byte[1024];
                     Array.Copy(data, i * 1024, tmp, 0, 1024);
                     WriteSPIFlash(address + (i * 1024), 1024, tmp);
-                    Console.WriteLine("Writing addr: " + (address + (i * 1024)));
+                    WaitUntilIdle();
+                    int prog = (int)(((float)(i) / (float)(fullparts)) * 100.0);
+                    progress = (prog == 0 ? 1 : prog);
+                    Console.WriteLine("Writing addr: " + ((i * 1024)));
                 }
             }
 
@@ -545,9 +567,11 @@ namespace dfulib
             {
                 byte[] tmp = new byte[lastpartsize];
                 Array.Copy(data, fullparts * 1024, tmp, 0, lastpartsize);
-                WriteSPIFlash(address + fullparts * 1024, lastpartsize, tmp);
-                Console.WriteLine("Writing addr: " + (address + fullparts * 1024));
+                WriteSPIFlash(address + (fullparts * 1024), lastpartsize, tmp);
+                Console.WriteLine("Writing addr: " + (fullparts * 1024));
             }
+            progress = 100;
         }
+
     }
 }
