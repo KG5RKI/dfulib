@@ -296,8 +296,24 @@ namespace dfulib
         {
             WriteCodeplug(File.ReadAllBytes(filename));
         }
-        public void WriteCodeplug(byte[] data)
+        public void WriteCodeplug(byte[] datain)
         {
+            byte[] data = null;
+
+            //check if in rdf container..
+            if(datain.Length == 262709 && datain[0]=='D' && datain[2] == 'u')
+            {
+                byte[] tmpData = new byte[datain.Length - 549 - 16];
+                Array.Copy(datain, 549, tmpData, 0, datain.Length - 549 - 16);
+                data = new byte[datain.Length - 549 - 16];
+                Array.Copy(tmpData, data, tmpData.Length);
+            }
+            else
+            {
+                data = new byte[datain.Length];
+                Array.Copy(datain, data, data.Length);
+            }
+
             // programming mode
             CustomCommand(0x91, 0x01);
             CustomCommand(0x91, 0x01);
@@ -320,7 +336,7 @@ namespace dfulib
             uint blockNumber = 2;
             for (int i = 0; i < data.Length; i += MAX_WRITE_BLOCK_SIZE)
             {
-                Array.Copy(data, i, tmpBlk, 0, MAX_WRITE_BLOCK_SIZE);
+                Array.Copy(data, i, tmpBlk, 0, (data.Length - i < MAX_WRITE_BLOCK_SIZE) ? data.Length - i : MAX_WRITE_BLOCK_SIZE);
                 WriteBlock(tmpBlk, blockNumber);
                 WaitUntilIdle();
                 blockNumber++;
@@ -394,7 +410,7 @@ namespace dfulib
             int jj = 0;
             foreach(uint addr in addresses)
             {
-                progress = (int)(((float)jj++ / (float)addresses.Length) * 100.0);
+                progress = (int)((float)jj++ / (addresses.Length+1) * 50.0)+1;
                 EraseSector(addr);
             }
 
@@ -433,7 +449,7 @@ namespace dfulib
                     WaitUntilIdle();
 
                     block_number++;
-                    int stuff = (int)(((float)datawritten / (float)data.Length) * 100.0);
+                    int stuff = (int)((float)datawritten / (float)(data.Length) * 50.0)+50;
                     progress = (stuff == 0 ? 1 : stuff);
                 }
                 address_idx += 1;
@@ -464,7 +480,7 @@ namespace dfulib
             long offset = 0;
             for(uint blockNumber = 2; blockNumber < 0x102; blockNumber++)
             {
-                progress = (int)(((float)blockNumber / (float)0x102) * 100.0);
+                progress = (int)(((float)blockNumber / (float)0x102) * 100.0)+1;
                 byte[] data = ReadBlock(blockNumber, MAX_WRITE_BLOCK_SIZE);
                 Array.Copy(data, 0, codeplug, offset, MAX_WRITE_BLOCK_SIZE);
 
@@ -541,7 +557,7 @@ namespace dfulib
             // erase
             for (uint i = address; i < (address + data.Length + 1); i += 0x1000)
             {
-                progress = (int)(((float)(i) / (float)((address + data.Length+1))) * 100.0);
+                progress = (int)(((float)(i) / (float)((address + (data.Length*2)+1))) * 100.0)+1;
                 EraseSPI64kBlock(i);
             }
 
@@ -556,7 +572,7 @@ namespace dfulib
                     Array.Copy(data, i * 1024, tmp, 0, 1024);
                     WriteSPIFlash(address + (i * 1024), 1024, tmp);
                     //WaitUntilIdle();
-                    int prog = (int)(((float)(i) / (float)(fullparts)) * 100.0);
+                    int prog = (int)(((float)(fullparts+i) / (float)(fullparts*2)) * 100.0)+1;
                     progress = (prog == 0 ? 1 : prog);
                     Console.WriteLine("Writing addr: " + ((i * 1024)));
                 }

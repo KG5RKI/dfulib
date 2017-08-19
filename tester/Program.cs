@@ -47,7 +47,7 @@ namespace tester
                 tr.Reboot();
             }
             Console.WriteLine("Done!");
-            Console.ReadKey();
+            //Console.ReadKey();
         }
     }
 }
