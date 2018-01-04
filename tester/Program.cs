@@ -46,8 +46,23 @@ namespace tester
                 Console.WriteLine("Rebooting");
                 tr.Reboot();
             }
+            else if (args[0] == "userdb2017")
+            {
+                Console.WriteLine("Flashing csv");
+                tr.WriteCSV_RT82(args[1]);
+                Console.WriteLine("Rebooting");
+                tr.Reboot();
+            }
+            else
+            {
+                Console.WriteLine("   readcp [file]");
+                Console.WriteLine("   writecp [file]");
+                Console.WriteLine("   userdb [file]");
+                Console.WriteLine("   flash [file]");
+                Console.WriteLine("   userdb2017");
+            }
             Console.WriteLine("Done!");
-            //Console.ReadKey();
+            Console.ReadKey();
         }
     }
 }

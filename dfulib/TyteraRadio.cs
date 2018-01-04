@@ -291,6 +291,170 @@ namespace dfulib
             STDFU.STDFU_GetStatus(ref hDevice, ref dfuStatus);
         }
 
+        public void ReadCSV_RT82(string filename)
+        {
+            File.WriteAllBytes(filename, ReadCSV_RT82());
+        }
+        public byte[] ReadCSV_RT82()
+        {
+            long length = 0xF00000;
+            long offset = 0;
+
+            byte[] codeplug = new byte[length];
+
+            CustomCommand(0x91, 0x01);
+            CustomCommand(0x91, 0x01);
+
+            CustomCommand(0xA2, 0x02);
+            CustomCommand(0xA2, 0x02);
+            CustomCommand(0xA2, 0x03);
+            CustomCommand(0xA2, 0x04);
+            CustomCommand(0xA2, 0x07);
+
+            SetAddressPointer(0x00000000);
+
+            // 256kb
+            
+            for (int blockNumber = 2; blockNumber < 0x2 + (length / 1024); blockNumber++)
+            {
+                progress = (int)(((float)offset / (float)length + 2.0f) * 100.0) + 1;
+                byte[] data = ReadBlock((uint)blockNumber, 1024);
+                Array.Copy(data, 0, codeplug, offset, 1024);
+
+                offset += 1024;
+            }
+
+            return codeplug;
+        }
+
+        public void WriteCSV_RT82(string filename)
+        {
+
+            byte[] csvData = getCSVData(filename);
+            WriteCSV_RT82(csvData);
+        }
+
+        private byte[] getCSVData(string filename)
+        {
+            string[] userdblines = File.ReadAllLines(filename);
+
+            byte[] userdbdata = new byte[(0x78 * 100000) + 3];
+
+            for (int h = 0; h < userdbdata.Length; h++)
+            {
+                userdbdata[h] = (byte)(0xFF);
+            }
+
+            for (int i=1; i < userdblines.Length && ((i-1)*0x78 < 0x78 * 100000); i++)
+            {
+                string[] userparts = userdblines[i].Split(',');
+
+                if (userparts.Length < 2)
+                {
+                    continue;
+                }
+
+                UInt32 userID = Convert.ToUInt32(userparts[0]) | 0xFF000000;
+                byte[] idbytes = BitConverter.GetBytes(userID);
+                Array.Copy(idbytes, 0, userdbdata, (0x78 * (i - 1)), 4);
+
+                //callsign
+                for(int h=0; h<16; h++)
+                {
+                    userdbdata[(0x78 * (i - 1)) + 4 + h] = (byte)(0);
+                }
+                byte[] toBytes = Encoding.ASCII.GetBytes(userparts[1]);
+                Array.Copy(toBytes, 0, userdbdata, (((0x78) * (i - 1)) + 4), toBytes.Length);
+                //rest of data
+                for (int h = 0; h < 0x64; h++)
+                {
+                    userdbdata[(0x78* (i - 1)) + 0x14 + h] = (byte)(0);
+                }
+                string newcsv = "";
+                for (int h=2; h < userparts.Length; h++)
+                {
+                    if (userparts[h].Length < 2)
+                    {
+                        newcsv += ",";
+                        continue;
+                    }
+
+                    if (h == 2)
+                    {
+                        string[] tttt = userparts[h].Split(' ');
+                        if (tttt.Length == 3 && tttt[1].Length==1)
+                        {
+                            newcsv += tttt[0] + " " + tttt[2];
+                            continue;
+                        }
+                    }
+                    
+                    newcsv += userparts[h];
+                    if(h != userparts.Length - 1)
+                    {
+                        newcsv += ",";
+                    }
+                }
+                newcsv += ",,,";
+                toBytes = Encoding.ASCII.GetBytes(newcsv);
+                Array.Copy(toBytes, 0, userdbdata, (((0x78) * (i - 1)) + 0x14), toBytes.Length);
+                //userdbdata[(((0x78) * (i - 1)) + 0x14) + toBytes.Length] = 0x0;
+            }
+            //Array.Copy(userdbdata, 0, userdbdata, 3, userdbdata.Length - 3);
+            byte[] ret = new byte[userdbdata.Length & 0xFFFFFFF0];
+            Array.Copy(userdbdata, 0x78, ret, 3, (ret.Length - 0x78) );
+            File.WriteAllBytes("userdb2017.bin", ret);
+            return ret;
+        }
+
+        public void WriteCSV_RT82(byte[] datain)
+        {
+            byte[] data = null;
+            uint blockNumber = 0x810 + 0x2;
+
+            //check if in rdf container..
+           
+            data = new byte[datain.Length];
+            Array.Copy(datain, data, data.Length);
+            
+
+            // programming mode
+            CustomCommand(0x91, 0x01);
+            CustomCommand(0x91, 0x01);
+
+            CustomCommand(0xA2, 0x02);
+            CustomCommand(0xA2, 0x02);
+            CustomCommand(0xA2, 0x03);
+            CustomCommand(0xA2, 0x04);
+            CustomCommand(0xA2, 0x07);
+
+            Console.WriteLine("Erasing..");
+
+            for (uint i = 0x200000; i < 0x204000+(data.Length); i+=0x10000)
+            {
+                EraseSector(i);
+                progress = (int)(((float)(0x200000) / (float)0x204000 + (data.Length)) * 100.0);
+            }
+
+            SetAddressPointer(0);
+
+            byte[] tmpBlk = new byte[MAX_WRITE_BLOCK_SIZE];
+
+            Console.WriteLine("Writing..");
+
+
+            for (int i = 0; i < data.Length; i += MAX_WRITE_BLOCK_SIZE)
+            {
+                Array.Copy(data, i, tmpBlk, 0, (data.Length - i < MAX_WRITE_BLOCK_SIZE) ? data.Length - i : MAX_WRITE_BLOCK_SIZE);
+                WriteBlock(tmpBlk, blockNumber);
+                WaitUntilIdle();
+                blockNumber++;
+                progress = (int)(((float)i / (float)data.Length) * 100.0);
+            }
+            Console.WriteLine("Final Block #: " + (blockNumber * 1024));
+        }
+
+
         // codeplug
         public void WriteCodeplug(string filename)
         {
