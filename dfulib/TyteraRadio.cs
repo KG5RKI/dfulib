@@ -887,7 +887,8 @@ namespace dfulib
             }
         }
 
-
+ // Commented out this function becuase its won't compile and its not used
+#if false
         public void WriteFirmware_2017(byte[] data)
         {
             IntPtr strinng = Marshal.AllocHGlobal(255);
@@ -1008,7 +1009,7 @@ namespace dfulib
                 address_idx += 1;
             }
         }
-
+#endif
         public void WriteFirmwareTest(byte[] data)
         {
             /*IntPtr strinng = Marshal.AllocHGlobal(255);
